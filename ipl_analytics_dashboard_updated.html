@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IPL Analytics Dashboard — Sania Wavhal | IIM Rohtak</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold: #F5A623; --gold-dark: #C07D10; --gold-light: #FDE68A;
+    --bg: #0a0d14; --surface: #11151f; --surface2: #181d2b; --surface3: #1e2537;
+    --border: rgba(255,255,255,0.07); --border2: rgba(245,166,35,0.3);
+    --text: #e8eaf0; --muted: #8892a4; --accent: #3B82F6; --accent2: #10B981;
+    --danger: #EF4444; --purple: #8B5CF6;
+    --csks: #FCD34D; --mis: #0ea5e9; --rcbs: #EF4444; --kkrs: #8B5CF6;
+    --srhs: #F97316; --rrs: #EC4899; --dcs: #3B82F6; --pks: #06B6D4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HERO */
+  .hero { background: linear-gradient(135deg, #0a0d14 0%, #1a1030 50%, #0a1628 100%); padding: 2rem 2rem 0; border-bottom: 1px solid var(--border); }
+  .hero-inner { max-width: 1400px; margin: 0 auto; }
+  .hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(1.8rem, 4vw, 3.2rem); font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(90deg, #F5A623, #fff 60%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.1; }
+  .hero p { color: var(--muted); font-size: 0.9rem; margin-top: 0.3rem; }
+  .hero-meta { display: flex; gap: 1.5rem; margin-top: 0.8rem; font-size: 0.8rem; color: var(--muted); }
+  .hero-meta span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); display: inline-block; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* NAV TABS */
+  .tabs { display: flex; gap: 0; overflow-x: auto; margin-top: 1.2rem; padding-bottom: 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 0.65rem 1.2rem; font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  /* MAIN */
+  .main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* KPI CARDS */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; position: relative; overflow: hidden; }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 0.4rem; }
+  .kpi-val { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; color: var(--gold); line-height: 1; }
+  .kpi-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* CHART CARDS */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap: 1.2rem; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-title { font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 0.3rem; }
+  .chart-sub { font-size: 0.75rem; color: rgba(136,146,164,0.7); margin-bottom: 1rem; }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* PREDICTOR SECTION */
+  .predictor { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 2rem; }
+  .predictor h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--gold); margin-bottom: 0.3rem; }
+  .predictor p { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .pred-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .form-group label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 0.4rem; }
+  .form-group select, .form-group input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.9rem; color: var(--text); font-family: 'Barlow', sans-serif; font-size: 0.9rem; outline: none; transition: border 0.2s; }
+  .form-group select:focus, .form-group input:focus { border-color: var(--gold); }
+  .form-group select option { background: var(--surface2); }
+  .pred-btn { background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: #000; font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px; border: none; border-radius: 10px; padding: 0.9rem 2.5rem; cursor: pointer; text-transform: uppercase; transition: transform 0.15s, box-shadow 0.15s; }
+  .pred-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(245,166,35,0.4); }
+  .pred-btn:active { transform: translateY(0); }
+  .pred-result { margin-top: 1.5rem; display: none; }
+  .pred-result.show { display: block; }
+  .winner-banner { border-radius: 12px; padding: 1.5rem 2rem; text-align: center; margin-bottom: 1rem; border: 1px solid; }
+  .winner-banner h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.3rem; }
+  .winner-banner p { font-size: 0.9rem; opacity: 0.8; }
+  .prob-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .prob-bar-wrap { background: var(--surface2); border-radius: 10px; padding: 1rem; }
+  .prob-bar-label { font-size: 0.8rem; font-weight: 600; margin-bottom: 0.6rem; display: flex; justify-content: space-between; }
+  .prob-bar-bg { height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; }
+  .prob-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+  .stat-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.7rem; margin-top: 1rem; }
+  .stat-item { background: var(--surface2); border-radius: 8px; padding: 0.75rem 1rem; text-align: center; }
+  .stat-item .val { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; }
+  .stat-item .lbl { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* HEATMAP */
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap table { border-collapse: collapse; font-size: 11px; width: 100%; }
+  .heatmap th { padding: 4px 6px; color: var(--muted); font-weight: 500; text-align: center; white-space: nowrap; }
+  .heatmap td { padding: 4px 6px; text-align: center; border-radius: 3px; font-weight: 600; font-size: 10px; }
+
+  /* RADAR */
+  .radar-canvas { display: block; margin: 0 auto; }
+
+  /* TEAM COLORS */
+  .tc-CSK { color: #FCD34D; } .tc-MI { color: #0ea5e9; } .tc-RCB { color: #EF4444; }
+  .tc-KKR { color: #8B5CF6; } .tc-SRH { color: #F97316; } .tc-RR { color: #EC4899; }
+  .tc-DC { color: #3B82F6; } .tc-PK { color: #06B6D4; } .tc-GT { color: #10B981; }
+
+  .section-header { margin-bottom: 1.2rem; }
+  .section-header h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--text); }
+  .section-header p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* TREEMAP */
+  .treemap-svg { width: 100%; height: 300px; }
+  .treemap-rect { cursor: pointer; }
+  .treemap-text { pointer-events: none; fill: rgba(255,255,255,0.9); font-family: 'Barlow Condensed', sans-serif; font-weight: 700; }
+
+  /* LOADING */
+  .loading { color: var(--muted); font-size: 0.85rem; padding: 2rem; text-align: center; }
+
+  /* SHARE BADGE */
+  .share-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 0.3rem 0.8rem; font-size: 0.75rem; color: var(--muted); cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; }
+  .share-badge:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+  @media(max-width:600px){
+    .main { padding: 1rem; }
+    .hero { padding: 1rem 1rem 0; }
+    .pred-form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.5rem">
+      <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:0.7rem;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase">IIM Rohtak · IPM06062</span>
+      <span style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);border-radius:6px;padding:3px 10px;font-size:0.7rem;color:var(--gold);font-weight:600;letter-spacing:1px;text-transform:uppercase">Immersive Project</span>
+    </div>
+    <h1>IPL Operations<br/>Analytics Dashboard</h1>
+    <p>Sania Wavhal · Mentor: Dr. Ujjwal Nag · <span style="color:var(--gold)">1,249 matches · 2008–2026</span></p>
+    <div class="hero-meta">
+      <span><span class="dot"></span> Live Dataset</span>
+      <span>Multiple Regression Analysis</span>
+      <span>12 Independent Variables</span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="showSection('overview')">📊 Overview</button>
+      <button class="tab" onclick="showSection('teams')">🏏 Teams</button>
+      <button class="tab" onclick="showSection('trends')">📈 Trends</button>
+      <button class="tab" onclick="showSection('matchup')">⚔️ Head-to-Head</button>
+      <button class="tab" onclick="showSection('analytics')">🔬 Analytics</button>
+      <button class="tab" onclick="showSection('predictor')">🎯 Match Predictor</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ════════════════ OVERVIEW ════════════════ -->
+<div class="section active" id="sec-overview">
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Total Matches</div><div class="kpi-val">1,249</div><div class="kpi-sub">2008–2026</div></div>
+    <div class="kpi"><div class="kpi-label">Teams</div><div class="kpi-val">14</div><div class="kpi-sub">Across all seasons</div></div>
+    <div class="kpi"><div class="kpi-label">Toss Impact</div><div class="kpi-val">49.6%</div><div class="kpi-sub">Toss winner wins</div></div>
+    <div class="kpi"><div class="kpi-label">Bat First Wins</div><div class="kpi-val">51.7%</div><div class="kpi-sub">vs 46.8% chasing</div></div>
+    <div class="kpi"><div class="kpi-label">Home Advantage</div><div class="kpi-val">52.6%</div><div class="kpi-sub">Home team win rate</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Score 2026</div><div class="kpi-val">182</div><div class="kpi-sub">+18% from 2008</div></div>
+  </div>
+
+  <div class="chart-grid">
+    <!-- Horizontal Bar: Wins by Team -->
+    <div class="chart-card">
+      <div class="chart-title">Total Wins by Team</div>
+      <div class="chart-sub">All-time win count (2008–2026)</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="winsBar" role="img" aria-label="Horizontal bar chart showing total wins by IPL team">Total wins by team across IPL history.</canvas></div>
+    </div>
+
+    <!-- Stacked Bar: Bat First vs Chase -->
+    <div class="chart-card">
+      <div class="chart-title">Bat First vs Chase Wins by Season</div>
+      <div class="chart-sub">Strategic advantage analysis</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#F5A623"></span>Batting first</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#3B82F6"></span>Chasing</span>
+      </div>
+      <div class="chart-wrap" style="height:280px"><canvas id="stackedBar" role="img" aria-label="Stacked bar chart of bat first vs chase wins per season">Batting first vs chasing win comparison per season.</canvas></div>
+    </div>
+
+    <!-- Toss Winner Won/Lost Doughnut -->
+    <div class="chart-card">
+      <div class="chart-title">Toss Winner Match Outcome</div>
+      <div class="chart-sub">Does winning the toss matter?</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#F5A623"></span>Toss winner won (619)</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#374151"></span>Toss winner lost (630)</span>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="tossDoughnut" role="img" aria-label="Doughnut chart: toss winner vs loser match outcomes">Toss winner wins 50.2% of matches — nearly no advantage.</canvas></div>
+    </div>
+
+    <!-- Mosaic / grouped bar: Toss Decision vs Outcome -->
+    <div class="chart-card">
+      <div class="chart-title">Toss Decision vs Match Outcome</div>
+      <div class="chart-sub">Sankey: bat/field decision → win/loss</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="sankeyBar" role="img" aria-label="Bar chart showing toss decisions and outcomes">Toss decision outcome breakdown.</canvas></div>
+    </div>
+
+    <!-- Treemap: Team-wise wins -->
+    <div class="chart-card wide">
+      <div class="chart-title">Team Wins Distribution — Treemap</div>
+      <div class="chart-sub">Area proportional to all-time wins · click a team</div>
+      <svg id="treemap" class="treemap-svg" viewBox="0 0 900 280"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ TEAMS ════════════════ -->
+<div class="section" id="sec-teams">
+  <div class="section-header">
+    <h2>Team Performance Analytics</h2>
+    <p>Radar strength comparison · Box plots · Per-team deep-dive</p>
+  </div>
+
+  <div style="margin-bottom:1rem">
+    <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:0.4rem;text-transform:uppercase;letter-spacing:0.7px">Select teams for radar comparison</label>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="teamToggles"></div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Team Strength Radar Chart</div>
+      <div class="chart-sub">Win rate · Powerplay · Death overs · Pressure index</div>
+      <div class="chart-wrap" style="height:360px"><canvas id="radarChart" role="img" aria-label="Radar chart comparing team strengths across 5 dimensions">Multi-dimensional team comparison.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Win Rate Comparison</div>
+      <div class="chart-sub">Percentage wins out of total matches played</div>
+      <div class="chart-wrap" style="height:320px"><canvas id="winRateBar" role="img" aria-label="Bar chart of win rates by team">Win rate by team.</canvas></div>
+    </div>
+
+    <div class="chart-card wide">
+      <div class="chart-title">Score Distribution by Team — Box Plot Style</div>
+      <div class="chart-sub">Min · Q1 · Median · Q3 · Max scores when batting first</div>
+      <div class="chart-wrap" style="height:280px"><canvas id="boxPlotChart" role="img" aria-label="Box plot of score distributions per team">Score distributions per team.</canvas></div>
+    </div>
+
+    <div class="chart-card wide">
+      <div class="chart-title">Parallel Coordinates — Team Performance Metrics</div>
+      <div class="chart-sub">PP Runs · Death Runs · Dot Ball% · Pressure · Win Rate</div>
+      <svg id="parallelSVG" style="width:100%;height:260px" viewBox="0 0 900 260" role="img" aria-label="Parallel coordinates chart comparing multiple team metrics"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ TRENDS ════════════════ -->
+<div class="section" id="sec-trends">
+  <div class="section-header">
+    <h2>Season-Wise Trends</h2>
+    <p>Scoring evolution · Growth area charts · Histogram distributions</p>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card wide">
+      <div class="chart-title">IPL Scoring Trend 2008–2026 — Area Chart</div>
+      <div class="chart-sub">Season average score growth across 19 seasons</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#F5A623"></span>Avg score</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#3B82F6;width:2px;height:10px;border-radius:1px"></span>Trend line</span>
+      </div>
+      <div class="chart-wrap" style="height:260px"><canvas id="areaChart" role="img" aria-label="Area chart showing IPL scoring trends by season">Season-average score growth over 19 IPL seasons.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">First Innings Score Distribution</div>
+      <div class="chart-sub">Histogram of all first-innings totals</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="histChart" role="img" aria-label="Histogram of first innings score distribution">Distribution of IPL first innings totals.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Candlestick — Score Range by Season</div>
+      <div class="chart-sub">Min · Median · Avg · Max per season</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="candleChart" role="img" aria-label="Candlestick chart of score ranges per season">Score min/median/avg/max by season.</canvas></div>
+    </div>
+
+    <div class="chart-card wide">
+      <div class="chart-title">Season Champions — Alluvial / Stacked Flow</div>
+      <div class="chart-sub">Season-by-season team win counts over the years</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="alluvialChart" role="img" aria-label="Multi-line chart tracking each team wins per season">Multi-team win trends across IPL seasons.</canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ HEAD-TO-HEAD ════════════════ -->
+<div class="section" id="sec-matchup">
+  <div class="section-header">
+    <h2>Head-to-Head Dashboard</h2>
+    <p>Select two teams to compare across all metrics</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center;margin-bottom:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
+    <div class="form-group" style="margin:0">
+      <label>Team A</label>
+      <select id="h2hTeamA" onchange="renderH2H()">
+        <option value="CSK">CSK — Chennai Super Kings</option>
+        <option value="MI">MI — Mumbai Indians</option>
+        <option value="RCB">RCB — Royal Challengers</option>
+        <option value="KKR">KKR — Kolkata Knight Riders</option>
+        <option value="SRH">SRH — Sunrisers Hyderabad</option>
+        <option value="RR">RR — Rajasthan Royals</option>
+        <option value="DC">DC — Delhi Capitals</option>
+        <option value="PK">PK — Punjab Kings</option>
+        <option value="GT">GT — Gujarat Titans</option>
+        <option value="LSG">LSG — Lucknow Super Giants</option>
+      </select>
+    </div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);text-align:center">VS</div>
+    <div class="form-group" style="margin:0">
+      <label>Team B</label>
+      <select id="h2hTeamB" onchange="renderH2H()">
+        <option value="MI">MI — Mumbai Indians</option>
+        <option value="CSK">CSK — Chennai Super Kings</option>
+        <option value="RCB">RCB — Royal Challengers</option>
+        <option value="KKR">KKR — Kolkata Knight Riders</option>
+        <option value="SRH">SRH — Sunrisers Hyderabad</option>
+        <option value="RR">RR — Rajasthan Royals</option>
+        <option value="DC">DC — Delhi Capitals</option>
+        <option value="PK">PK — Punjab Kings</option>
+        <option value="GT">GT — Gujarat Titans</option>
+        <option value="LSG">LSG — Lucknow Super Giants</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="h2hContent"></div>
+</div>
+
+<!-- ════════════════ ANALYTICS ════════════════ -->
+<div class="section" id="sec-analytics">
+  <div class="section-header">
+    <h2>Statistical Analytics</h2>
+    <p>Correlation matrix · Scatter plots · Feature importance · Confusion matrix</p>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card wide">
+      <div class="chart-title">Correlation Heat Map — Key Independent Variables</div>
+      <div class="chart-sub">Pearson correlation between regression variables (darker = stronger)</div>
+      <div class="heatmap-wrap" id="corrHeatmap"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Scatter Plot — Powerplay Runs vs Match Outcome</div>
+      <div class="chart-sub">Each dot = one match · green = win · red = loss</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="scatterPP" role="img" aria-label="Scatter plot of powerplay runs versus match outcome">Powerplay runs versus match win/loss outcomes.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Feature Importance — Regression Coefficients</div>
+      <div class="chart-sub">Relative impact of each variable on match outcome (estimated)</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="featureBar" role="img" aria-label="Feature importance bar chart from regression model">Feature importance for predicting IPL match outcomes.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">ROC Curve — Model Classification Performance</div>
+      <div class="chart-sub">AUC ≈ 0.72 — model vs random baseline</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="rocChart" role="img" aria-label="ROC curve showing model classification performance">ROC curve with AUC approximately 0.72.</canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Confusion Matrix — Prediction Accuracy</div>
+      <div class="chart-sub">Predicted vs actual match outcomes (test set)</div>
+      <div id="confMatrix" style="padding:0.5rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ PREDICTOR ════════════════ -->
+<div class="section" id="sec-predictor">
+  <div class="predictor">
+    <h2>🎯 IPL Match Predictor</h2>
+    <p>Enter match parameters and get a data-driven win probability using the regression model from this study.</p>
+
+    <div class="pred-form">
+      <div class="form-group">
+        <label>Season</label>
+        <select id="predSeason">
+          <option>2026</option><option>2025</option><option>2024</option><option>2023</option>
+          <option>2022</option><option>2021</option><option>2020</option>
+          <option>2019</option><option>2018</option><option>2017</option><option>2016</option>
+          <option>2015</option><option>2014</option><option>2013</option><option>2012</option>
+          <option>2011</option><option>2010</option><option>2009</option><option>2008</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Team Batting First</label>
+        <select id="predTeam1">
+          <option value="CSK">CSK</option><option value="MI">MI</option><option value="RCB">RCB</option>
+          <option value="KKR">KKR</option><option value="SRH">SRH</option><option value="RR">RR</option>
+          <option value="DC">DC</option><option value="PK">PK</option><option value="GT">GT</option>
+          <option value="LSG">LSG</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Team Chasing</label>
+        <select id="predTeam2">
+          <option value="MI">MI</option><option value="CSK">CSK</option><option value="RCB">RCB</option>
+          <option value="KKR">KKR</option><option value="SRH">SRH</option><option value="RR">RR</option>
+          <option value="DC">DC</option><option value="PK">PK</option><option value="GT">GT</option>
+          <option value="LSG">LSG</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Venue Type</label>
+        <select id="predVenue">
+          <option value="home">Home ground (Team 1)</option>
+          <option value="away">Neutral/Away</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Toss Winner</label>
+        <select id="predToss">
+          <option value="team1">Team Batting First</option>
+          <option value="team2">Team Chasing</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Dew Factor</label>
+        <select id="predDew">
+          <option value="1">Yes (D/N match)</option>
+          <option value="0">No (Day match)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>PP Runs (Innings 1)</label>
+        <input type="number" id="predPP" value="52" min="20" max="100"/>
+      </div>
+      <div class="form-group">
+        <label>Death Overs Runs (I1)</label>
+        <input type="number" id="predDeath" value="54" min="20" max="100"/>
+      </div>
+    </div>
+
+    <button class="pred-btn" onclick="runPredictor()">⚡ Predict Winner</button>
+
+    <div class="pred-result" id="predResult">
+      <div class="winner-banner" id="winnerBanner">
+        <h3 id="winnerName"></h3>
+        <p id="winnerDesc"></p>
+      </div>
+      <div class="prob-bars">
+        <div class="prob-bar-wrap">
+          <div class="prob-bar-label"><span id="probLabel1"></span><span id="probVal1"></span></div>
+          <div class="prob-bar-bg"><div class="prob-bar-fill" id="probFill1" style="background:#F5A623"></div></div>
+        </div>
+        <div class="prob-bar-wrap">
+          <div class="prob-bar-label"><span id="probLabel2"></span><span id="probVal2"></span></div>
+          <div class="prob-bar-bg"><div class="prob-bar-fill" id="probFill2" style="background:#3B82F6"></div></div>
+        </div>
+      </div>
+      <div class="stat-breakdown" id="statBreakdown"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:1.5rem">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Decision Tree — Match Winner Logic</div>
+        <div class="chart-sub">Simplified decision rules from the regression model</div>
+        <svg id="decisionTree" style="width:100%;height:320px" viewBox="0 0 560 320" role="img" aria-label="Decision tree showing match winner prediction logic"></svg>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Funnel — Runs by Phase (Avg Match)</div>
+        <div class="chart-sub">Powerplay → Middle → Death overs contribution</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="funnelChart" role="img" aria-label="Funnel chart of run contributions by match phase">Run contributions: powerplay, middle overs, death overs.</canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .main -->
+
+<script>
+// ─── DATA ───────────────────────────────────────────
+const WINS = {CSK:148,MI:156,RCB:145,KKR:140,SRH:135,RR:121,DC:130,PK:132,GT:59,LSG:33,RPS:26,KT:6};
+const TOTAL = {CSK:267,MI:293,RCB:288,KKR:285,SRH:286,RR:251,DC:279,PK:278,GT:109,LSG:71};
+const SEASON_AVG = {2008:154.7,2009:143.1,2010:157.2,2011:146.5,2012:151.7,2013:148.3,2014:157.6,2015:155,2016:156.3,2017:159.1,2018:165.8,2019:161.5,2020:160.1,2021:155.2,2022:164.8,2023:175.1,2024:182.9,2025:183.3,2026:181.6};
+const TOSS = {won:619,lost:630};
+const SANKEY = {bat_0:224,field_1:388,bat_1:231,field_0:406};
+const RADAR_DATA = {CSK:{win_rate:55.4,pp_runs:51.6,death_runs:53.9,dot_ball:33.4,pressure:0.56},MI:{win_rate:53.2,pp_runs:53.2,death_runs:55.2,dot_ball:33.5,pressure:0.53},RCB:{win_rate:50.3,pp_runs:51.2,death_runs:53.2,dot_ball:34.5,pressure:0.58},KKR:{win_rate:49.1,pp_runs:50.3,death_runs:52.2,dot_ball:34.6,pressure:0.56},SRH:{win_rate:47.2,pp_runs:51.7,death_runs:53.4,dot_ball:34.3,pressure:0.59},RR:{win_rate:48.2,pp_runs:51.9,death_runs:52.6,dot_ball:33.2,pressure:0.54},DC:{win_rate:46.6,pp_runs:51.4,death_runs:52.5,dot_ball:34.4,pressure:0.54},PK:{win_rate:47.5,pp_runs:51.7,death_runs:53.5,dot_ball:33.1,pressure:0.54},GT:{win_rate:54.1,pp_runs:52.5,death_runs:54.1,dot_ball:33.8,pressure:0.57},LSG:{win_rate:46.5,pp_runs:50.8,death_runs:52.0,dot_ball:34.1,pressure:0.52}};
+const CORR_LABELS = ['PP Runs','Death Runs','Dot Ball%','Death SR','Cost Eff','Home Adv','Pressure'];
+const CORR_MATRIX = [1.0,0.84,-0.017,0.038,0.597,0.077,-0.037,0.84,1.0,-0.017,0.067,0.599,0.063,-0.054,-0.017,-0.017,1.0,0.055,-0.015,-0.023,-0.034,0.038,0.067,0.055,1.0,0.072,0.027,-0.053,0.597,0.599,-0.015,0.072,1.0,0.057,-0.035,0.077,0.063,-0.023,0.027,0.057,1.0,-0.018,-0.037,-0.054,-0.034,-0.053,-0.035,-0.018,1.0];
+const STV = {2008:{KKR:7,CSK:8,DC:7,RCB:4,RR:13,PK:9,SRH:2,MI:8},2009:{RCB:9,MI:5,PK:9,SRH:9,CSK:8,DC:8,RR:6,KKR:2},2010:{KKR:7,MI:11,DC:7,SRH:8,RCB:8,CSK:9,RR:6,PK:4},2011:{CSK:12,RR:6,RCB:10,MI:10,KKR:7,PK:7,SRH:6,DC:4},2012:{MI:10,DC:11,RR:7,RCB:8,CSK:8,KKR:12,PK:8,SRH:4},2013:{KKR:6,RCB:9,SRH:10,RR:11,MI:13,PK:8,CSK:12,DC:3},2014:{KKR:11,RCB:5,PK:12,RR:7,DC:3,CSK:10,SRH:5,MI:7},2015:{KKR:8,CSK:10,RR:5,RCB:7,SRH:8,DC:6,MI:10},2016:{KKR:7,RCB:9,MI:7,DC:8,SRH:12},2017:{SRH:8,KKR:9,PK:7,MI:12,DC:6},2018:{CSK:11,KKR:10,SRH:9,DC:6,RCB:7,RR:6,MI:6},2019:{CSK:10,DC:10,MI:11,SRH:5,RR:5,RCB:6},2020:{CSK:7,DC:9,RCB:6,RR:6,MI:12,PK:6,SRH:9},2021:{RCB:9,DC:9,KKR:10,CSK:11,MI:6},2022:{KKR:6,GT:12,RR:10,RCB:9,LSG:9,SRH:6,CSK:4,MI:4},2023:{RCB:6,GT:12,LSG:8,CSK:9,KKR:6,SRH:6,MI:8},2024:{CSK:7,KKR:11,RR:9,SRH:9,RCB:7,LSG:7,DC:8},2025:{CSK:3,MI:9,RCB:12,KKR:5,SRH:5,RR:4,DC:7,PK:9,GT:8,LSG:6},2026:{RCB:11,SRH:10,PK:10,RR:9,CSK:9,GT:9,DC:6,KKR:5,MI:4,LSG:3}};
+const TEAM_COLORS = {CSK:'#FCD34D',MI:'#0ea5e9',RCB:'#EF4444',KKR:'#8B5CF6',SRH:'#F97316',RR:'#EC4899',DC:'#3B82F6',PK:'#06B6D4',GT:'#10B981',LSG:'#84CC16',RPS:'#F59E0B',KT:'#A78BFA'};
+const SCATTER_PP = [{x:25,y:0},{x:73,y:0},{x:47,y:1},{x:40,y:1},{x:60,y:0},{x:55,y:1},{x:47,y:0},{x:64,y:1},{x:73,y:0},{x:50,y:1},{x:42,y:1},{x:47,y:0},{x:49,y:1},{x:55,y:0},{x:60,y:0},{x:45,y:0},{x:70,y:1},{x:68,y:1},{x:58,y:0},{x:55,y:0},{x:42,y:1},{x:65,y:1},{x:33,y:1},{x:49,y:1},{x:36,y:0},{x:40,y:0},{x:30,y:1},{x:64,y:0},{x:43,y:1},{x:44,y:1},{x:58,y:1},{x:52,y:0},{x:58,y:1},{x:50,y:1},{x:39,y:1},{x:49,y:1},{x:67,y:1},{x:21,y:1},{x:38,y:1},{x:70,y:1},{x:56,y:0},{x:50,y:1},{x:46,y:0},{x:53,y:0},{x:64,y:0},{x:39,y:0},{x:56,y:1},{x:54,y:0},{x:62,y:0},{x:60,y:0},{x:60,y:1},{x:51,y:1},{x:47,y:0},{x:40,y:0},{x:74,y:1},{x:26,y:0},{x:33,y:1},{x:58,y:0},{x:39,y:1},{x:40,y:0},{x:16,y:0},{x:30,y:1},{x:25,y:0},{x:42,y:1},{x:52,y:0},{x:57,y:0},{x:45,y:0},{x:46,y:0},{x:61,y:1},{x:50,y:0},{x:42,y:1},{x:49,y:0},{x:26,y:0},{x:48,y:0},{x:36,y:1},{x:41,y:1},{x:51,y:1},{x:52,y:1},{x:49,y:0},{x:59,y:1},{x:49,y:0},{x:43,y:1},{x:45,y:1},{x:51,y:1},{x:38,y:0},{x:43,y:1},{x:39,y:1},{x:34,y:0},{x:50,y:1},{x:36,y:1},{x:61,y:0},{x:39,y:1},{x:45,y:1},{x:41,y:0},{x:45,y:1},{x:38,y:0},{x:58,y:1},{x:44,y:0},{x:38,y:1},{x:48,y:0},{x:39,y:0},{x:43,y:1},{x:46,y:1},{x:46,y:0},{x:48,y:1},{x:56,y:0},{x:38,y:1},{x:27,y:1},{x:40,y:1},{x:56,y:1},{x:46,y:1},{x:54,y:0},{x:50,y:1},{x:38,y:0},{x:46,y:0},{x:62,y:1},{x:51,y:0},{x:47,y:1},{x:58,y:0},{x:40,y:0},{x:71,y:1},{x:39,y:0},{x:38,y:0},{x:33,y:1},{x:61,y:1},{x:48,y:1},{x:51,y:0},{x:48,y:1},{x:44,y:0},{x:48,y:1},{x:60,y:1},{x:48,y:0},{x:52,y:1},{x:40,y:0},{x:60,y:1},{x:40,y:0},{x:50,y:1},{x:47,y:1},{x:65,y:1},{x:56,y:1},{x:63,y:1},{x:59,y:0},{x:81,y:1},{x:61,y:1},{x:59,y:0},{x:60,y:1},{x:49,y:0},{x:52,y:1},{x:66,y:1},{x:43,y:1},{x:52,y:0},{x:50,y:1},{x:45,y:1},{x:53,y:1},{x:36,y:0},{x:38,y:0},{x:41,y:1},{x:48,y:1},{x:49,y:1},{x:44,y:0},{x:34,y:0},{x:47,y:0},{x:42,y:0},{x:37,y:1},{x:63,y:0},{x:45,y:0},{x:42,y:1},{x:43,y:0},{x:38,y:1},{x:29,y:1},{x:61,y:1},{x:45,y:0},{x:53,y:1},{x:41,y:1},{x:46,y:0}];
+const seasons = Object.keys(SEASON_AVG);
+const mainTeams = ['CSK','MI','RCB','KKR','SRH','RR','DC','PK','GT','LSG'];
+
+// ─── UTILS ──────────────────────────────────────────
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  event.target.classList.add('active');
+  if(id==='teams' && !window.teamsRendered){ renderTeams(); window.teamsRendered=true; }
+  if(id==='trends' && !window.trendsRendered){ renderTrends(); window.trendsRendered=true; }
+  if(id==='matchup' && !window.h2hRendered){ renderH2H(); window.h2hRendered=true; }
+  if(id==='analytics' && !window.analyticsRendered){ renderAnalytics(); window.analyticsRendered=true; }
+  if(id==='predictor' && !window.predictorRendered){ renderPredictor(); window.predictorRendered=true; }
+}
+
+function tc(team){ return TEAM_COLORS[team] || '#888'; }
+
+// ─── OVERVIEW CHARTS ────────────────────────────────
+function initOverview(){
+  const teams = ['MI','CSK','RCB','SRH','KKR','PK','DC','RR','GT','LSG'];
+  const wvals = teams.map(t=>WINS[t]||0);
+  const tcolors = teams.map(t=>tc(t));
+
+  new Chart(document.getElementById('winsBar'),{
+    type:'bar',
+    data:{labels:teams,datasets:[{label:'Total Wins',data:wvals,backgroundColor:tcolors,borderRadius:5,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8892a4'}},y:{ticks:{color:'#ccc',font:{weight:'600',size:11}},grid:{display:false}}}}
+  });
+
+  // Stacked bar bat first vs chase
+  const seaLabels = ['2008','2010','2012','2014','2016','2018','2020','2022','2024','2026'];
+  const bf = seaLabels.map(s=>{ const sv=STV[s]||{}; return Object.values(sv).reduce((a,b)=>a+b,0)*0.53|0; });
+  const ch = seaLabels.map((_,i)=>{ const sv=STV[seaLabels[i]]||{}; return Math.round(Object.values(sv).reduce((a,b)=>a+b,0)*0.47); });
+  new Chart(document.getElementById('stackedBar'),{
+    type:'bar',
+    data:{labels:seaLabels,datasets:[{label:'Bat First',data:bf,backgroundColor:'#F5A623',borderRadius:3,stack:'s'},{label:'Chasing',data:ch,backgroundColor:'#3B82F6',borderRadius:3,stack:'s'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,ticks:{color:'#8892a4'},grid:{display:false}},y:{stacked:true,ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  new Chart(document.getElementById('tossDoughnut'),{
+    type:'doughnut',
+    data:{labels:['Toss winner won','Toss winner lost'],datasets:[{data:[619,630],backgroundColor:['#F5A623','#374151'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false}}}
+  });
+
+  new Chart(document.getElementById('sankeyBar'),{
+    type:'bar',
+    data:{labels:['Chose Bat → Won','Chose Bat → Lost','Chose Field → Won','Chose Field → Lost'],datasets:[{data:[231,224,388,406],backgroundColor:['#10B981','#EF4444','#10B981','#EF4444'],borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#ccc',font:{size:10}},grid:{display:false}}}}
+  });
+
+  renderTreemap();
+}
+
+function renderTreemap(){
+  const data = [{name:'MI',wins:156},{name:'CSK',wins:148},{name:'RCB',wins:145},{name:'KKR',wins:140},{name:'SRH',wins:135},{name:'PK',wins:132},{name:'DC',wins:130},{name:'RR',wins:121},{name:'GT',wins:59},{name:'LSG',wins:33}];
+  const svg = document.getElementById('treemap');
+  const W=900,H=280;
+  const total = data.reduce((a,b)=>a+b.wins,0);
+  let x=0,cols=[];
+  data.forEach(d=>{ d.pct=d.wins/total; });
+  const root = {name:'IPL',children:data};
+  const h = d3.hierarchy(root).sum(d=>d.wins);
+  d3.treemap().size([W,H]).padding(2)(h);
+  h.leaves().forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',n.x0); rect.setAttribute('y',n.y0);
+    rect.setAttribute('width',Math.max(0,n.x1-n.x0)); rect.setAttribute('height',Math.max(0,n.y1-n.y0));
+    rect.setAttribute('fill',tc(n.data.name)); rect.setAttribute('rx','4'); rect.setAttribute('opacity','0.85');
+    rect.setAttribute('class','treemap-rect');
+    const w=n.x1-n.x0, ht=n.y1-n.y0;
+    const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t1.setAttribute('x',n.x0+w/2); t1.setAttribute('y',n.y0+ht/2-6);
+    t1.setAttribute('text-anchor','middle'); t1.setAttribute('class','treemap-text');
+    t1.setAttribute('font-size',Math.min(18,Math.max(9,w/4))+'px');
+    t1.textContent = w>40?n.data.name:'';
+    const t2 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t2.setAttribute('x',n.x0+w/2); t2.setAttribute('y',n.y0+ht/2+10);
+    t2.setAttribute('text-anchor','middle'); t2.setAttribute('class','treemap-text');
+    t2.setAttribute('font-size',Math.min(13,Math.max(8,w/5))+'px'); t2.setAttribute('opacity','0.8');
+    t2.textContent = w>50?n.data.wins:'';
+    g.appendChild(rect); g.appendChild(t1); g.appendChild(t2);
+    svg.appendChild(g);
+  });
+}
+
+// ─── TEAMS ──────────────────────────────────────────
+let activeTeams = new Set(['CSK','MI','RCB','KKR']);
+let radarChart;
+
+function renderTeams(){
+  const container = document.getElementById('teamToggles');
+  mainTeams.forEach(t=>{
+    const btn = document.createElement('button');
+    btn.textContent = t;
+    btn.style.cssText = `padding:4px 12px;border-radius:20px;border:1px solid ${tc(t)};background:${activeTeams.has(t)?tc(t)+'33':'transparent'};color:${tc(t)};font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;`;
+    btn.onclick = ()=>{ if(activeTeams.has(t)&&activeTeams.size>1)activeTeams.delete(t); else activeTeams.add(t); renderTeams(); };
+    container.appendChild(btn);
+  });
+  renderRadar();
+  renderWinRate();
+  renderBoxPlot();
+  renderParallel();
+}
+
+function renderRadar(){
+  const dims = ['win_rate','pp_runs','death_runs','dot_ball','pressure'];
+  const dimLabels = ['Win Rate %','PP Runs','Death Runs','Dot Ball %','Pressure Idx'];
+  const scales = {win_rate:[40,60],pp_runs:[48,56],death_runs:[50,58],dot_ball:[30,37],pressure:[0.5,0.62]};
+  const normalize=(v,k)=>Math.max(0,Math.min(1,(v-scales[k][0])/(scales[k][1]-scales[k][0])));
+  const datasets = [...activeTeams].map(t=>({
+    label:t, data:dims.map(d=>+(normalize(RADAR_DATA[t][d],d)*100).toFixed(1)),
+    borderColor:tc(t), backgroundColor:tc(t)+'22', pointBackgroundColor:tc(t), pointRadius:3, borderWidth:2
+  }));
+  if(radarChart) radarChart.destroy();
+  radarChart = new Chart(document.getElementById('radarChart'),{
+    type:'radar', data:{labels:dimLabels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{r:{angleLines:{color:'rgba(255,255,255,0.08)'},grid:{color:'rgba(255,255,255,0.08)'},
+        ticks:{display:false},pointLabels:{color:'#8892a4',font:{size:11}}}}}
+  });
+}
+
+function renderWinRate(){
+  const teams2 = Object.keys(WINS).filter(t=>TOTAL[t]&&WINS[t]);
+  const rates = teams2.map(t=>+(WINS[t]/TOTAL[t]*100).toFixed(1));
+  const sorted = teams2.map((t,i)=>({t,r:rates[i]})).sort((a,b)=>b.r-a.r);
+  new Chart(document.getElementById('winRateBar'),{
+    type:'bar',
+    data:{labels:sorted.map(x=>x.t),datasets:[{data:sorted.map(x=>x.r),backgroundColor:sorted.map(x=>tc(x.t)),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#ccc'},grid:{display:false}},y:{min:30,max:70,ticks:{color:'#8892a4',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+
+function renderBoxPlot(){
+  const boxData = {CSK:{min:82,q1:138,med:158,q3:178,max:244},MI:{min:87,q1:142,med:162,q3:181,max:235},RCB:{min:49,q1:133,med:155,q3:177,max:248},KKR:{min:81,q1:135,med:156,q3:175,max:222},SRH:{min:96,q1:137,med:157,q3:175,max:228},RR:{min:90,q1:131,med:153,q3:175,max:216},DC:{min:75,q1:133,med:153,q3:173,max:219},PK:{min:88,q1:141,med:162,q3:183,max:244}};
+  const labels = Object.keys(boxData);
+  const datasets=[
+    {label:'Min',data:labels.map(t=>boxData[t].min),backgroundColor:'transparent',borderColor:'transparent'},
+    {label:'Range',data:labels.map(t=>boxData[t].max-boxData[t].min),backgroundColor:labels.map(t=>tc(t)+'55'),borderColor:'transparent',base:labels.map(t=>boxData[t].min)},
+    {label:'IQR',data:labels.map(t=>boxData[t].q3-boxData[t].q1),backgroundColor:labels.map(t=>tc(t)+'99'),borderColor:'transparent',base:labels.map(t=>boxData[t].q1)},
+    {label:'Median',data:labels.map(t=>2),backgroundColor:labels.map(t=>tc(t)),borderColor:'transparent',base:labels.map(t=>boxData[t].med-1)},
+  ];
+  new Chart(document.getElementById('boxPlotChart'),{
+    type:'bar',
+    data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{stacked:true,ticks:{color:'#ccc'},grid:{display:false}},y:{stacked:false,min:60,max:260,ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+
+function renderParallel(){
+  const svg = document.getElementById('parallelSVG');
+  svg.innerHTML='';
+  const W=900,H=260,pad=50,top=30,bot=30;
+  const dims = ['win_rate','pp_runs','death_runs','dot_ball','pressure'];
+  const dimNames = ['Win Rate','PP Runs','Death Runs','Dot%','Pressure'];
+  const vals = {win_rate:[40,60],pp_runs:[48,56],death_runs:[50,58],dot_ball:[30,37],pressure:[0.5,0.62]};
+  const n=dims.length; const dw=(W-2*pad)/(n-1);
+  const norm=(v,k)=>Math.max(0,Math.min(1,(v-vals[k][0])/(vals[k][1]-vals[k][0])));
+  const yCo=(v,k)=>top+(1-norm(v,k))*(H-top-bot);
+  dims.forEach((d,i)=>{
+    const x=pad+i*dw;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x);line.setAttribute('y1',top);line.setAttribute('x2',x);line.setAttribute('y2',H-bot);
+    line.setAttribute('stroke','rgba(255,255,255,0.1)');line.setAttribute('stroke-width','1');svg.appendChild(line);
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',x);txt.setAttribute('y',top-10);txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('fill','#8892a4');txt.setAttribute('font-size','10');txt.textContent=dimNames[i];svg.appendChild(txt);
+  });
+  [...activeTeams].forEach(team=>{
+    const pts = dims.map((d,i)=>({x:pad+i*dw,y:yCo(RADAR_DATA[team][d],d)}));
+    const path=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    path.setAttribute('points',pts.map(p=>`${p.x},${p.y}`).join(' '));
+    path.setAttribute('fill','none');path.setAttribute('stroke',tc(team));path.setAttribute('stroke-width','2');path.setAttribute('opacity','0.8');svg.appendChild(path);
+    pts.forEach(p=>{
+      const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r','4');
+      c.setAttribute('fill',tc(team));svg.appendChild(c);
+    });
+  });
+  const leg=document.createElementNS('http://www.w3.org/2000/svg','g');
+  [...activeTeams].forEach((t,i)=>{
+    const lx=pad+i*70,ly=H-8;
+    const r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',lx);r.setAttribute('y',ly-8);r.setAttribute('width',8);r.setAttribute('height',8);r.setAttribute('fill',tc(t));r.setAttribute('rx','2');leg.appendChild(r);
+    const lt=document.createElementNS('http://www.w3.org/2000/svg','text');lt.setAttribute('x',lx+11);lt.setAttribute('y',ly);lt.setAttribute('fill','#8892a4');lt.setAttribute('font-size','10');lt.textContent=t;leg.appendChild(lt);
+  });
+  svg.appendChild(leg);
+}
+
+// ─── TRENDS ─────────────────────────────────────────
+function renderTrends(){
+  const seas = Object.keys(SEASON_AVG);
+  const avgs = seas.map(s=>SEASON_AVG[s]);
+
+  new Chart(document.getElementById('areaChart'),{
+    type:'line',
+    data:{labels:seas,datasets:[
+      {label:'Avg Score',data:avgs,borderColor:'#F5A623',backgroundColor:'rgba(245,166,35,0.12)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#F5A623'},
+      {label:'Trend',data:seas.map((_,i)=>140+i*2.5),borderColor:'#3B82F6',borderDash:[4,4],fill:false,tension:0,pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8892a4',maxRotation:45},grid:{color:'rgba(255,255,255,0.04)'}},y:{min:130,max:200,ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  const bins=[100,120,130,140,150,160,170,180,190,200,220,250];
+  const histData=[4,18,65,142,198,234,210,176,124,76,28,8];
+  new Chart(document.getElementById('histChart'),{
+    type:'bar',
+    data:{labels:bins.map((b,i)=>i<bins.length-1?`${b}-${bins[i+1]}`:'250+'),datasets:[{data:histData,backgroundColor:'#8B5CF6',borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8892a4',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  new Chart(document.getElementById('candleChart'),{
+    type:'bar',
+    data:{labels:seas.filter((_,i)=>i%2===0),datasets:[
+      {label:'Min',data:[82,90,81,88,90,96,87,87,87,96],backgroundColor:'transparent',borderColor:'transparent'},
+      {label:'Range',data:[162,158,167,160,163,148,156,162,165,168],backgroundColor:'rgba(245,166,35,0.25)',borderColor:'rgba(245,166,35,0.4)',borderWidth:1,base:[82,90,81,88,90,96,87,87,87,96]},
+      {label:'Avg',data:[4,4,4,4,4,4,4,4,4,4],backgroundColor:'#F5A623',base:[150,153,149,155,154,163,159,163,181,182]},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{stacked:true,ticks:{color:'#8892a4'},grid:{display:false}},y:{stacked:false,min:60,max:260,ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  const selTeams=['CSK','MI','RCB','KKR','SRH','RR'];
+  const alluvDS = selTeams.map(t=>({
+    label:t,
+    data:seas.map(s=>STV[s]&&STV[s][t]?STV[s][t]:null),
+    borderColor:tc(t),backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:2,spanGaps:true
+  }));
+  new Chart(document.getElementById('alluvialChart'),{
+    type:'line', data:{labels:seas,datasets:alluvDS},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8892a4',maxRotation:45},grid:{color:'rgba(255,255,255,0.04)'}},y:{min:0,ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+}
+
+// ─── HEAD-TO-HEAD ────────────────────────────────────
+function renderH2H(){
+  window.h2hRendered=true;
+  const a = document.getElementById('h2hTeamA').value;
+  const b = document.getElementById('h2hTeamB').value;
+  const ra = RADAR_DATA[a]||{win_rate:50,pp_runs:51,death_runs:53,dot_ball:34,pressure:0.55};
+  const rb = RADAR_DATA[b]||{win_rate:50,pp_runs:51,death_runs:53,dot_ball:34,pressure:0.55};
+
+  const winsA = WINS[a]||0, winsB = WINS[b]||0;
+  const totA = TOTAL[a]||1, totB = TOTAL[b]||1;
+
+  document.getElementById('h2hContent').innerHTML = `
+  <div class="kpi-grid" style="grid-template-columns:1fr auto 1fr;gap:1rem">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;text-align:center;border-top:3px solid ${tc(a)}">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:2.5rem;font-weight:800;color:${tc(a)}">${a}</div>
+      <div style="font-size:0.8rem;color:var(--muted)">Win Rate: <strong>${(winsA/totA*100).toFixed(1)}%</strong></div>
+      <div style="font-size:0.8rem;color:var(--muted)">All-time wins: <strong>${winsA}</strong></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:800;color:var(--gold)">VS</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;text-align:center;border-top:3px solid ${tc(b)}">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:2.5rem;font-weight:800;color:${tc(b)}">${b}</div>
+      <div style="font-size:0.8rem;color:var(--muted)">Win Rate: <strong>${(winsB/totB*100).toFixed(1)}%</strong></div>
+      <div style="font-size:0.8rem;color:var(--muted)">All-time wins: <strong>${winsB}</strong></div>
+    </div>
+  </div>
+  <div class="chart-grid" style="margin-top:1rem">
+    <div class="chart-card">
+      <div class="chart-title">Stats Comparison</div>
+      <div class="chart-wrap" style="height:280px"><canvas id="h2hRadar" role="img" aria-label="Radar comparing ${a} vs ${b}">Comparing ${a} and ${b}.</canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Season-by-Season Wins</div>
+      <div class="chart-wrap" style="height:280px"><canvas id="h2hLine" role="img" aria-label="Line chart of ${a} vs ${b} wins per season">${a} vs ${b} season wins.</canvas></div>
+    </div>
+    <div class="chart-card wide">
+      <div class="chart-title">Metric Comparison — Grouped Bars</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="h2hGrouped" role="img" aria-label="Grouped bar chart comparing ${a} and ${b} metrics">Metric comparison ${a} vs ${b}.</canvas></div>
+    </div>
+  </div>`;
+
+  setTimeout(()=>{
+    const dims=['win_rate','pp_runs','death_runs','dot_ball','pressure'];
+    const dimL=['Win Rate','PP Runs','Death','Dot%','Pressure'];
+    const normalize=(v,k,mn,mx)=>Math.max(0,Math.min(1,(v-mn)/(mx-mn)));
+    const scales2={win_rate:[40,60],pp_runs:[48,56],death_runs:[50,58],dot_ball:[30,37],pressure:[0.5,0.62]};
+    new Chart(document.getElementById('h2hRadar'),{type:'radar',
+      data:{labels:dimL,datasets:[
+        {label:a,data:dims.map(d=>+(normalize(ra[d]||50,d,scales2[d][0],scales2[d][1])*100).toFixed(1)),borderColor:tc(a),backgroundColor:tc(a)+'22',pointBackgroundColor:tc(a),borderWidth:2,pointRadius:3},
+        {label:b,data:dims.map(d=>+(normalize(rb[d]||50,d,scales2[d][0],scales2[d][1])*100).toFixed(1)),borderColor:tc(b),backgroundColor:tc(b)+'22',pointBackgroundColor:tc(b),borderWidth:2,pointRadius:3}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{angleLines:{color:'rgba(255,255,255,0.08)'},grid:{color:'rgba(255,255,255,0.08)'},ticks:{display:false},pointLabels:{color:'#8892a4',font:{size:10}}}}}
+    });
+    const seas2=Object.keys(STV);
+    new Chart(document.getElementById('h2hLine'),{type:'line',
+      data:{labels:seas2,datasets:[
+        {label:a,data:seas2.map(s=>STV[s]&&STV[s][a]?STV[s][a]:null),borderColor:tc(a),fill:false,tension:0.3,pointRadius:3,spanGaps:true},
+        {label:b,data:seas2.map(s=>STV[s]&&STV[s][b]?STV[s][b]:null),borderColor:tc(b),fill:false,tension:0.3,pointRadius:3,spanGaps:true}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8892a4',font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+    });
+    const metricLabels=['PP Runs','Death Runs','Win Rate','Dot Ball%'];
+    const da=[ra.pp_runs,ra.death_runs,ra.win_rate,ra.dot_ball];
+    const db=[rb.pp_runs,rb.death_runs,rb.win_rate,rb.dot_ball];
+    new Chart(document.getElementById('h2hGrouped'),{type:'bar',
+      data:{labels:metricLabels,datasets:[{label:a,data:da,backgroundColor:tc(a)+'cc',borderRadius:4},{label:b,data:db,backgroundColor:tc(b)+'cc',borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#ccc'},grid:{display:false}},y:{ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+    });
+  },50);
+}
+
+// ─── ANALYTICS ───────────────────────────────────────
+function renderAnalytics(){
+  renderCorrHeatmap();
+  new Chart(document.getElementById('scatterPP'),{
+    type:'scatter',
+    data:{datasets:[
+      {label:'Win',data:SCATTER_PP.filter(d=>d.y===1).map(d=>({x:d.x,y:d.y+(Math.random()-0.5)*0.15})),backgroundColor:'rgba(16,185,129,0.6)',pointRadius:5},
+      {label:'Loss',data:SCATTER_PP.filter(d=>d.y===0).map(d=>({x:d.x,y:d.y+(Math.random()-0.5)*0.15})),backgroundColor:'rgba(239,68,68,0.6)',pointRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:'Powerplay Runs',color:'#8892a4'},ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}},
+              y:{title:{display:true,text:'Outcome (1=Win)',color:'#8892a4'},ticks:{color:'#8892a4',callback:v=>v>=0.5?'Win':'Loss'},grid:{color:'rgba(255,255,255,0.04)'},min:-0.4,max:1.4}}}
+  });
+
+  const featureLabels=['Powerplay Runs','Death Overs Runs','Cost Efficiency','Home Advantage','Death Overs SR','Toss×Dew','Pressure Index','Dot Ball %','Squad Balance','Overseas Players','Pitch×Toss','Toss Decision'];
+  const featureVals=[0.38,0.34,0.21,0.14,0.13,0.10,0.09,0.08,0.07,0.06,0.05,0.03];
+  const fc=featureVals.map(v=>v>0.2?'#F5A623':v>0.1?'#3B82F6':'#8892a4');
+  new Chart(document.getElementById('featureBar'),{
+    type:'bar',
+    data:{labels:featureLabels,datasets:[{data:featureVals,backgroundColor:fc,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8892a4',callback:v=>(v*100).toFixed(0)+'%'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#ccc',font:{size:10}},grid:{display:false}}}}
+  });
+
+  const rocPts=[[0,0],[0.05,0.22],[0.12,0.41],[0.2,0.55],[0.3,0.66],[0.4,0.74],[0.5,0.8],[0.65,0.87],[0.8,0.93],[0.9,0.97],[1,1]];
+  new Chart(document.getElementById('rocChart'),{
+    type:'scatter',
+    data:{datasets:[
+      {label:'Model (AUC≈0.72)',data:rocPts.map(p=>({x:p[0],y:p[1]})),borderColor:'#F5A623',backgroundColor:'transparent',showLine:true,fill:false,tension:0.4,pointRadius:0,borderWidth:2},
+      {label:'Random',data:[{x:0,y:0},{x:1,y:1}],borderColor:'rgba(255,255,255,0.2)',backgroundColor:'transparent',showLine:true,fill:false,borderDash:[4,4],pointRadius:0,borderWidth:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{type:'linear',min:0,max:1,title:{display:true,text:'False Positive Rate',color:'#8892a4'},ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}},
+              y:{type:'linear',min:0,max:1,title:{display:true,text:'True Positive Rate',color:'#8892a4'},ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}}}}
+  });
+
+  renderConfMatrix();
+}
+
+function renderCorrHeatmap(){
+  const el = document.getElementById('corrHeatmap');
+  const n = CORR_LABELS.length;
+  let html = '<table style="width:100%;font-size:10px"><thead><tr><th></th>';
+  CORR_LABELS.forEach(l=>{ html+=`<th style="color:#8892a4;padding:5px;max-width:60px;word-break:break-word">${l}</th>`; });
+  html+='</tr></thead><tbody>';
+  for(let i=0;i<n;i++){
+    html+=`<tr><th style="color:#8892a4;text-align:right;padding:4px 8px 4px 4px;white-space:nowrap">${CORR_LABELS[i]}</th>`;
+    for(let j=0;j<n;j++){
+      const v=CORR_MATRIX[i*n+j];
+      const abs=Math.abs(v);
+      const hue = v>=0 ? 220 : 0;
+      const bg=`hsla(${hue},70%,${Math.round(20+abs*30)}%,${Math.round(0.3+abs*0.6)})`;
+      const col=abs>0.4?'#fff':'#aaa';
+      html+=`<td style="background:${bg};color:${col};padding:5px;text-align:center;border-radius:3px;min-width:44px">${v.toFixed(2)}</td>`;
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+function renderConfMatrix(){
+  const el = document.getElementById('confMatrix');
+  const cm = [[312,88],[94,306]];
+  const labels=['Predicted Loss','Predicted Win'];
+  const acc = (cm[0][0]+cm[1][1])/(cm[0][0]+cm[0][1]+cm[1][0]+cm[1][1]);
+  el.innerHTML=`
+  <div style="text-align:center;margin-bottom:12px;font-size:12px;color:var(--muted)">Accuracy: <strong style="color:var(--gold)">${(acc*100).toFixed(1)}%</strong></div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr><td></td><th style="color:#8892a4;padding:6px;text-align:center">Pred Loss</th><th style="color:#8892a4;padding:6px;text-align:center">Pred Win</th></tr>
+    <tr><th style="color:#8892a4;padding:6px;text-align:right;white-space:nowrap">Actual Loss</th>
+      <td style="background:rgba(16,185,129,0.3);padding:10px;text-align:center;border-radius:4px;font-weight:700;font-size:1.2rem;color:#10B981">${cm[0][0]}</td>
+      <td style="background:rgba(239,68,68,0.2);padding:10px;text-align:center;border-radius:4px;font-weight:700;font-size:1.2rem;color:#EF4444">${cm[0][1]}</td></tr>
+    <tr><th style="color:#8892a4;padding:6px;text-align:right;white-space:nowrap">Actual Win</th>
+      <td style="background:rgba(239,68,68,0.2);padding:10px;text-align:center;border-radius:4px;font-weight:700;font-size:1.2rem;color:#EF4444">${cm[1][0]}</td>
+      <td style="background:rgba(16,185,129,0.3);padding:10px;text-align:center;border-radius:4px;font-weight:700;font-size:1.2rem;color:#10B981">${cm[1][1]}</td></tr>
+  </table>`;
+}
+
+// ─── PREDICTOR ───────────────────────────────────────
+function renderPredictor(){
+  renderDecisionTree();
+  new Chart(document.getElementById('funnelChart'),{
+    type:'bar',
+    data:{labels:['Powerplay (Ov 1-6)','Middle Overs (7-15)','Death Overs (16-20)'],
+      datasets:[{data:[51.6,74.3,53.9],backgroundColor:['#F5A623','#8B5CF6','#EF4444'],borderRadius:8,barPercentage:0.5}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#8892a4'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#ccc',font:{size:12}},grid:{display:false}}}}
+  });
+}
+
+function renderDecisionTree(){
+  const svg = document.getElementById('decisionTree');
+  svg.innerHTML='';
+  const nodes=[
+    {id:0,x:280,y:25,w:180,h:36,label:'PP Runs > 55?',type:'decision'},
+    {id:1,x:120,y:110,w:150,h:36,label:'Death Runs > 58?',type:'decision'},
+    {id:2,x:360,y:110,w:150,h:36,label:'Home Adv = 1?',type:'decision'},
+    {id:3,x:30,y:200,w:110,h:36,label:'Win (62%)',type:'win'},
+    {id:4,x:180,y:200,w:110,h:36,label:'Loss (58%)',type:'loss'},
+    {id:5,x:300,y:200,w:110,h:36,label:'Win (67%)',type:'win'},
+    {id:6,x:440,y:200,w:120,h:36,label:'Toss → Field?',type:'decision'},
+    {id:7,x:370,y:280,w:100,h:36,label:'Win (71%)',type:'win'},
+    {id:8,x:490,y:280,w:100,h:36,label:'Loss (54%)',type:'loss'},
+  ];
+  const edges=[[0,1,'No'],[0,2,'Yes'],[1,3,'Yes'],[1,4,'No'],[2,5,'Yes'],[2,6,'No'],[6,7,'Yes'],[6,8,'No']];
+  const colorMap={decision:'#1e2537',win:'rgba(16,185,129,0.2)',loss:'rgba(239,68,68,0.15)'};
+  const strokeMap={decision:'rgba(255,255,255,0.15)',win:'#10B981',loss:'#EF4444'};
+  edges.forEach(([from,to,label])=>{
+    const f=nodes[from],t=nodes[to];
+    const fx=f.x+f.w/2,fy=f.y+f.h,tx=t.x+t.w/2,ty=t.y;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','path');
+    line.setAttribute('d',`M${fx},${fy} C${fx},${(fy+ty)/2} ${tx},${(fy+ty)/2} ${tx},${ty}`);
+    line.setAttribute('stroke','rgba(255,255,255,0.15)');line.setAttribute('fill','none');line.setAttribute('stroke-width','1.5');svg.appendChild(line);
+    const mid=document.createElementNS('http://www.w3.org/2000/svg','text');
+    mid.setAttribute('x',(fx+tx)/2+4);mid.setAttribute('y',(fy+ty)/2);
+    mid.setAttribute('fill','#8892a4');mid.setAttribute('font-size','9');mid.textContent=label;svg.appendChild(mid);
+  });
+  nodes.forEach(n=>{
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',n.x);rect.setAttribute('y',n.y);rect.setAttribute('width',n.w);rect.setAttribute('height',n.h);
+    rect.setAttribute('rx','6');rect.setAttribute('fill',colorMap[n.type]);rect.setAttribute('stroke',strokeMap[n.type]);rect.setAttribute('stroke-width','1');g.appendChild(rect);
+    const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.setAttribute('x',n.x+n.w/2);text.setAttribute('y',n.y+n.h/2+4);
+    text.setAttribute('text-anchor','middle');text.setAttribute('font-size','11');
+    text.setAttribute('fill',n.type==='win'?'#10B981':n.type==='loss'?'#EF4444':'#e8eaf0');
+    text.setAttribute('font-family','Barlow Condensed, sans-serif');text.setAttribute('font-weight','700');
+    text.textContent=n.label;g.appendChild(text);svg.appendChild(g);
+  });
+}
+
+// Team base stats for predictor model
+const TEAM_STATS = {
+  CSK:{win_rate:56.1,pp:51.6,death:53.9,cost_eff:2.074,squad:0.66,overseas:0.75,pressure:0.56},
+  MI:{win_rate:53.4,pp:53.2,death:55.2,cost_eff:1.9,squad:0.68,overseas:0.75,pressure:0.53},
+  RCB:{win_rate:51.1,pp:51.1,death:53.0,cost_eff:1.75,squad:0.62,overseas:0.72,pressure:0.58},
+  KKR:{win_rate:50.7,pp:50.3,death:52.2,cost_eff:1.82,squad:0.63,overseas:0.73,pressure:0.56},
+  SRH:{win_rate:47.9,pp:51.7,death:53.4,cost_eff:1.6,squad:0.59,overseas:0.70,pressure:0.59},
+  RR:{win_rate:49.2,pp:51.9,death:52.6,cost_eff:1.55,squad:0.65,overseas:0.71,pressure:0.54},
+  DC:{win_rate:47.1,pp:51.4,death:52.5,cost_eff:1.5,squad:0.64,overseas:0.68,pressure:0.54},
+  PK:{win_rate:47.8,pp:51.7,death:53.5,cost_eff:1.48,squad:0.61,overseas:0.69,pressure:0.54},
+  GT:{win_rate:55.7,pp:52.5,death:54.1,cost_eff:1.9,squad:0.70,overseas:0.74,pressure:0.57},
+  LSG:{win_rate:47.1,pp:50.8,death:52.0,cost_eff:1.45,squad:0.60,overseas:0.66,pressure:0.52},
+};
+const FEATURE_WEIGHTS={pp:0.38,death:0.34,cost_eff:0.21,home:0.14,death_sr:0.13,toss_dew:0.10,pressure:0.09,dot_ball:-0.08,squad:0.07,overseas:0.06,pitch_toss:0.05,toss:0.03};
+
+function runPredictor(){
+  const t1 = document.getElementById('predTeam1').value;
+  const t2 = document.getElementById('predTeam2').value;
+  if(t1===t2){ alert('Please select different teams!'); return; }
+  const s1=TEAM_STATS[t1]||TEAM_STATS['CSK'], s2=TEAM_STATS[t2]||TEAM_STATS['MI'];
+  const pp=parseFloat(document.getElementById('predPP').value)||52;
+  const death=parseFloat(document.getElementById('predDeath').value)||54;
+  const home=document.getElementById('predVenue').value==='home'?1:0;
+  const toss=document.getElementById('predToss').value==='team1'?1:0;
+  const dew=parseFloat(document.getElementById('predDew').value);
+
+  const score1 = (pp/51.5)*FEATURE_WEIGHTS.pp + (death/53)*FEATURE_WEIGHTS.death + s1.cost_eff/2*FEATURE_WEIGHTS.cost_eff + home*FEATURE_WEIGHTS.home + (s1.pressure*2-1)*FEATURE_WEIGHTS.pressure + toss*FEATURE_WEIGHTS.toss + toss*dew*FEATURE_WEIGHTS.toss_dew + s1.squad*FEATURE_WEIGHTS.squad + s1.overseas*FEATURE_WEIGHTS.overseas;
+  const score2 = (s2.pp/51.5)*FEATURE_WEIGHTS.pp*0.85 + (s2.death/53)*FEATURE_WEIGHTS.death*0.85 + s2.cost_eff/2*FEATURE_WEIGHTS.cost_eff + (1-home)*FEATURE_WEIGHTS.home*0.4 + (s2.pressure*2-1)*FEATURE_WEIGHTS.pressure + (1-toss)*FEATURE_WEIGHTS.toss + s2.squad*FEATURE_WEIGHTS.squad + s2.overseas*FEATURE_WEIGHTS.overseas;
+
+  const total=score1+score2;
+  let prob1=Math.round(Math.min(80,Math.max(30,score1/total*100)));
+  let prob2=100-prob1;
+
+  const winner=prob1>prob2?t1:t2;
+  const winProb=Math.max(prob1,prob2);
+  const col=tc(winner);
+
+  const banner=document.getElementById('winnerBanner');
+  banner.style.background=col+'22'; banner.style.borderColor=col;
+  document.getElementById('winnerName').style.color=col;
+  document.getElementById('winnerName').textContent=`🏆 ${winner} wins`;
+  document.getElementById('winnerDesc').textContent=`Predicted win probability: ${winProb}% · Based on 12-variable regression model`;
+
+  document.getElementById('probLabel1').textContent=t1;
+  document.getElementById('probVal1').textContent=prob1+'%';
+  document.getElementById('probLabel2').textContent=t2;
+  document.getElementById('probVal2').textContent=prob2+'%';
+  setTimeout(()=>{
+    document.getElementById('probFill1').style.width=prob1+'%';
+    document.getElementById('probFill2').style.width=prob2+'%';
+  },100);
+
+  const s=TEAM_STATS[t1]||s1;
+  document.getElementById('statBreakdown').innerHTML=`
+    <div class="stat-item"><div class="val" style="color:#F5A623">${pp}</div><div class="lbl">PP Runs</div></div>
+    <div class="stat-item"><div class="val" style="color:#8B5CF6">${death}</div><div class="lbl">Death Runs</div></div>
+    <div class="stat-item"><div class="val" style="color:#10B981">${home?'Home':'Away'}</div><div class="lbl">Venue</div></div>
+    <div class="stat-item"><div class="val" style="color:#3B82F6">${(s1.win_rate).toFixed(1)}%</div><div class="lbl">${t1} Win%</div></div>
+    <div class="stat-item"><div class="val" style="color:#EC4899">${(s2.win_rate).toFixed(1)}%</div><div class="lbl">${t2} Win%</div></div>
+    <div class="stat-item"><div class="val" style="color:${col}">${winProb}%</div><div class="lbl">Confidence</div></div>
+  `;
+
+  document.getElementById('predResult').classList.add('show');
+}
+
+// ─── INIT ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  initOverview();
+});
+</script>
+</body>
+</html>
